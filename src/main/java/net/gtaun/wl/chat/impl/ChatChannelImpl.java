@@ -18,7 +18,11 @@ import java.util.List;
 
 import net.gtaun.shoebill.data.Color;
 import net.gtaun.shoebill.object.Player;
+import net.gtaun.util.event.EventManager;
+import net.gtaun.util.event.ManagedEventManager;
 import net.gtaun.wl.chat.ChatChannel;
+import net.gtaun.wl.chat.event.ChatChannelMessageEvent;
+import net.gtaun.wl.chat.event.ChatChannelPlayerChatEvent;
 
 /**
  * 聊天频道实现类。
@@ -27,18 +31,21 @@ import net.gtaun.wl.chat.ChatChannel;
  */
 public class ChatChannelImpl implements ChatChannel
 {
+	private final ManagedEventManager eventManager;
 	private final List<Player> members;
 	
 	private boolean isDestroyed;
 	private String name;
-	private String format = "[" + FORMAT_CHANNEL_NAME + "] " + FORMAT_PLAYER_COLOR + FORMAT_PLAYER_NAME+ ": " + FORMAT_CHANNEL_COLOR + FORMAT_PLAYER_TEXT;
+	private String prefixFormat = "[" + FORMAT_CHANNEL_NAME + "] ";
+	private String playerMessageFormat = FORMAT_PLAYER_COLOR + FORMAT_PLAYER_NAME+ ": " + FORMAT_CHANNEL_COLOR + FORMAT_PLAYER_TEXT;
 	private Color color = Color.WHITE;
 	
 	
-	public ChatChannelImpl(String name)
+	public ChatChannelImpl(String name, EventManager rootEventManager)
 	{
-		members = new LinkedList<>();
 		this.name = name;
+		eventManager = new ManagedEventManager(rootEventManager);
+		members = new LinkedList<>();
 	}
 	
 	@Override
@@ -60,15 +67,27 @@ public class ChatChannelImpl implements ChatChannel
 	}
 
 	@Override
-	public String getFormat()
+	public String getPrefixFormat()
 	{
-		return format;
+		return prefixFormat;
 	}
 
 	@Override
-	public void setFormat(String format)
+	public void setPrefixFormat(String prefix)
 	{
-		this.format = format;
+		this.prefixFormat = prefix;
+	}
+	
+	@Override
+	public String getPlayerMessageFormat()
+	{
+		return playerMessageFormat;
+	}
+
+	@Override
+	public void setPlayerMessageFormat(String format)
+	{
+		this.playerMessageFormat = format;
 	}
 	
 	@Override
@@ -85,17 +104,48 @@ public class ChatChannelImpl implements ChatChannel
 		members.remove(player);
 	}
 	
+	private String formatChannelMessage(String format)
+	{
+		String prefix = format;
+		prefix = prefix.replace(FORMAT_CHANNEL_NAME, name);
+		prefix = prefix.replace(FORMAT_CHANNEL_COLOR, color.toEmbeddingString());
+		return prefix;
+	}
+	
+	private String formatPlayerMessage(String format, Player player, String text)
+	{
+		String message = format;
+		message = message.replace(FORMAT_PLAYER_NAME, player.getName());
+		message = message.replace(FORMAT_PLAYER_TEXT, text);
+		message = message.replace(FORMAT_PLAYER_COLOR, player.getColor().toEmbeddingString());
+		return message;
+	}
+	
 	@Override
 	public void chat(Player player, String text)
 	{
 		if (isDestroyed) return;
 		
-		String message = format;
-		message = message.replace(FORMAT_CHANNEL_NAME, name);
-		message = message.replace(FORMAT_CHANNEL_COLOR, color.toEmbeddingString());
-		message = message.replace(FORMAT_PLAYER_NAME, player.getName());
-		message = message.replace(FORMAT_PLAYER_TEXT, text);
-		message = message.replace(FORMAT_PLAYER_COLOR, player.getColor().toEmbeddingString());
+		ChatChannelPlayerChatEvent chatEvent = new ChatChannelPlayerChatEvent(this, player, text);
+		eventManager.dispatchEvent(chatEvent, player, this);
+		if (chatEvent.isCanceled()) return;
+		
+		text = chatEvent.getText();
+		
+		String message = formatPlayerMessage(playerMessageFormat, player, text);
+		message(message);
+	}
+	
+	@Override
+	public void message(String text)
+	{
+		String message = formatChannelMessage(prefixFormat + text);
+		
+		ChatChannelMessageEvent messageEvent = new ChatChannelMessageEvent(this, message);
+		eventManager.dispatchEvent(messageEvent, this);
+		if (messageEvent.isCanceled()) return;
+		
+		message = messageEvent.getMessage();
 		
 		for (Player member : members)
 		{

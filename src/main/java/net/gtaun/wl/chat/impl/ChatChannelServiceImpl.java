@@ -33,6 +33,8 @@ import net.gtaun.util.event.ManagedEventManager;
 import net.gtaun.wl.chat.ChatChannel;
 import net.gtaun.wl.chat.ChatChannelPlayer;
 import net.gtaun.wl.chat.ChatChannelService;
+import net.gtaun.wl.chat.event.ChatChannelCreateEvent;
+import net.gtaun.wl.chat.event.ChatChannelDestroyEvent;
 
 /**
  * 新未来世界聊天频道服务实现类。
@@ -84,8 +86,15 @@ public class ChatChannelServiceImpl implements ChatChannelService
 	@Override
 	public ChatChannel createChannel(String name)
 	{
-		ChatChannel channel = new ChatChannelImpl(name);
+		ChatChannel channel = getChannel(name);
+		if (channel != null) return channel;
+		
+		channel = new ChatChannelImpl(name, eventManager);
 		channels.put(channel.getName(), channel);
+		
+		ChatChannelCreateEvent event = new ChatChannelCreateEvent(channel);
+		eventManager.dispatchEvent(event, this);
+		
 		return channel;
 	}
 	
@@ -104,7 +113,13 @@ public class ChatChannelServiceImpl implements ChatChannelService
 	@Override
 	public void destroyChannel(ChatChannel channel)
 	{
+		if (channel.isDestroyed()) return;
+		
+		ChatChannelDestroyEvent event = new ChatChannelDestroyEvent(channel);
+		eventManager.dispatchEvent(event, this, channel);
+		
 		channels.remove(channel.getName());
+		channel.destroy();
 	}
 	
 	@Override

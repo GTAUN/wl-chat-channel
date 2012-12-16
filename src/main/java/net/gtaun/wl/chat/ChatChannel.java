@@ -32,11 +32,15 @@ public interface ChatChannel extends Destroyable
 	
 	String getName();
 
-	String getFormat();
-	void setFormat(String format);
+	String getPrefixFormat();
+	void setPrefixFormat(String prefix);
+	
+	String getPlayerMessageFormat();
+	void setPlayerMessageFormat(String format);
 	
 	void join(Player player);
 	void leave(Player player);
 
 	void chat(Player player, String text);
+	void message(String text);
 }
