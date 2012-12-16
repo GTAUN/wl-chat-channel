@@ -33,8 +33,8 @@ import net.gtaun.util.event.ManagedEventManager;
 import net.gtaun.wl.chat.ChatChannel;
 import net.gtaun.wl.chat.ChatChannelPlayer;
 import net.gtaun.wl.chat.ChatChannelService;
-import net.gtaun.wl.chat.event.ChatChannelCreateEvent;
 import net.gtaun.wl.chat.event.ChatChannelDestroyEvent;
+import net.gtaun.wl.chat.event.ChatChannelEventHandler;
 
 /**
  * 新未来世界聊天频道服务实现类。
@@ -67,11 +67,17 @@ public class ChatChannelServiceImpl implements ChatChannelService
 		eventManager.registerHandler(PlayerDisconnectEvent.class, playerEventHandler, HandlerPriority.BOTTOM);
 		eventManager.registerHandler(PlayerCommandEvent.class, playerEventHandler, HandlerPriority.NORMAL);
 		eventManager.registerHandler(PlayerTextEvent.class, playerEventHandler, HandlerPriority.NORMAL);
+		
+		eventManager.registerHandler(ChatChannelDestroyEvent.class, this, channelEventHandler, HandlerPriority.BOTTOM);
 	}
 	
 	public void uninitialize()
 	{
 		eventManager.cancelAll();
+		
+		for (ChatChannel channel : channels.values()) channel.destroy();
+		channels.clear();
+		
 		players.clear();
 	}
 	
@@ -87,11 +93,8 @@ public class ChatChannelServiceImpl implements ChatChannelService
 		ChatChannel channel = getChannel(name);
 		if (channel != null) return channel;
 		
-		channel = new ChatChannelImpl(name, eventManager);
+		channel = new ChatChannelImpl(name, this, eventManager);
 		channels.put(channel.getName(), channel);
-		
-		ChatChannelCreateEvent event = new ChatChannelCreateEvent(channel);
-		eventManager.dispatchEvent(event, this);
 		
 		return channel;
 	}
@@ -111,15 +114,9 @@ public class ChatChannelServiceImpl implements ChatChannelService
 	@Override
 	public void destroyChannel(ChatChannel channel)
 	{
-		if (channel.isDestroyed()) return;
-		
-		ChatChannelDestroyEvent event = new ChatChannelDestroyEvent(channel);
-		eventManager.dispatchEvent(event, this, channel);
-		
-		channels.remove(channel.getName());
 		channel.destroy();
 	}
-
+	
 	@Override
 	public ChatChannel getDefaultChannel()
 	{
@@ -200,6 +197,15 @@ public class ChatChannelServiceImpl implements ChatChannelService
 			ChatChannelPlayer chatChannelPlayer = getPlayer(player);
 			chatChannelPlayer.chat(text);
 			event.disallow();
+		}
+	};
+	
+	private ChatChannelEventHandler channelEventHandler = new ChatChannelEventHandler()
+	{
+		protected void onChannelDestroy(ChatChannelDestroyEvent event)
+		{
+			ChatChannel channel = event.getChannel();
+			channels.remove(channel.getName());
 		}
 	};
 }

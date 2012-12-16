@@ -24,6 +24,9 @@ import net.gtaun.util.event.EventManager;
 import net.gtaun.util.event.ManagedEventManager;
 import net.gtaun.util.event.EventManager.HandlerPriority;
 import net.gtaun.wl.chat.ChatChannel;
+import net.gtaun.wl.chat.ChatChannelService;
+import net.gtaun.wl.chat.event.ChatChannelCreateEvent;
+import net.gtaun.wl.chat.event.ChatChannelDestroyEvent;
 import net.gtaun.wl.chat.event.ChatChannelPlayerLeaveEvent;
 import net.gtaun.wl.chat.event.ChatChannelPlayerJoinEvent;
 import net.gtaun.wl.chat.event.ChatChannelMessageEvent;
@@ -36,6 +39,7 @@ import net.gtaun.wl.chat.event.ChatChannelPlayerChatEvent;
  */
 public class ChatChannelImpl implements ChatChannel
 {
+	private final ChatChannelService service;
 	private final ManagedEventManager eventManager;
 	private final List<Player> members;
 	
@@ -46,20 +50,29 @@ public class ChatChannelImpl implements ChatChannel
 	private Color color = Color.WHITE;
 	
 	
-	public ChatChannelImpl(String name, EventManager rootEventManager)
+	public ChatChannelImpl(String name, ChatChannelService service, EventManager rootEventManager)
 	{
 		this.name = name;
+		this.service = service;
+		
 		eventManager = new ManagedEventManager(rootEventManager);
 		members = new LinkedList<>();
 		
 		eventManager.registerHandler(PlayerDisconnectEvent.class, playerEventHandler, HandlerPriority.BOTTOM);
+		
+		ChatChannelCreateEvent event = new ChatChannelCreateEvent(this);
+		eventManager.dispatchEvent(event, service);
 	}
 	
 	@Override
 	public void destroy()
 	{
+		ChatChannelDestroyEvent event = new ChatChannelDestroyEvent(this);
+		eventManager.dispatchEvent(event, service, this);
+		
 		eventManager.cancelAll();
 		members.clear();
+		
 		isDestroyed = true;
 	}
 	
