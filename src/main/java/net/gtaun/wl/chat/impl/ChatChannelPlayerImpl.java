@@ -13,6 +13,7 @@
 
 package net.gtaun.wl.chat.impl;
 
+import net.gtaun.shoebill.data.Color;
 import net.gtaun.shoebill.object.Player;
 import net.gtaun.wl.chat.ChatChannel;
 import net.gtaun.wl.chat.ChatChannelPlayer;
@@ -55,6 +56,12 @@ public class ChatChannelPlayerImpl implements ChatChannelPlayer
 	@Override
 	public void chat(String text)
 	{
+		if (currentChannel == null)
+		{
+			player.sendMessage(Color.RED, "You did not joined any channel, so you can not chat.");
+			return;
+		}
+		
 		currentChannel.chat(player, text);
 	}
 }
