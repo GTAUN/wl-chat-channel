@@ -13,6 +13,8 @@
 
 package net.gtaun.wl.chat;
 
+import java.util.Collection;
+
 import net.gtaun.shoebill.object.Destroyable;
 import net.gtaun.shoebill.object.Player;
 
@@ -37,9 +39,11 @@ public interface ChatChannel extends Destroyable
 	
 	String getPlayerMessageFormat();
 	void setPlayerMessageFormat(String format);
+
+	Collection<Player> getMembers();
 	
-	void join(Player player);
-	void leave(Player player);
+	boolean join(Player player);
+	boolean leave(Player player);
 
 	void chat(Player player, String text);
 	void message(String text);

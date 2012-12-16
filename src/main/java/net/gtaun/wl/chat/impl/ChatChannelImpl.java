@@ -13,6 +13,9 @@
 
 package net.gtaun.wl.chat.impl;
 
+import java.util.AbstractCollection;
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -113,22 +116,83 @@ public class ChatChannelImpl implements ChatChannel
 	}
 	
 	@Override
-	public void join(Player player)
+	public Collection<Player> getMembers()
 	{
-		if (isDestroyed) return;
-		
-		members.add(player);
-		
-		ChatChannelPlayerJoinEvent event = new ChatChannelPlayerJoinEvent(this, player);
-		eventManager.dispatchEvent(event, this, player);
+		return new AbstractCollection<Player>()
+		{
+			@Override
+			public boolean add(Player e)
+			{
+				return join(e);
+			}
+			
+			@Override
+			public Iterator<Player> iterator()
+			{
+				return new Iterator<Player>()
+				{
+					private Iterator<Player> iterator = members.iterator();
+					private Player current;
+					
+					@Override
+					public boolean hasNext()
+					{
+						return iterator.hasNext();
+					}
+
+					@Override
+					public Player next()
+					{
+						current = iterator.next();
+						return current;
+					}
+
+					@Override
+					public void remove()
+					{
+						iterator.remove();
+						
+						if (current != null)
+						{
+							dispatchLeaveEvent(current);
+							current = null;
+						}
+					}
+				};
+			}
+
+			@Override
+			public int size()
+			{
+				return members.size();
+			}
+		};
 	}
 	
 	@Override
-	public void leave(Player player)
+	public boolean join(Player player)
 	{
-		if (isDestroyed) return;
-		members.remove(player);
+		if (isDestroyed) return false;
+		if (members.contains(player)) return false;
 		
+		members.add(player);
+		ChatChannelPlayerJoinEvent event = new ChatChannelPlayerJoinEvent(this, player);
+		eventManager.dispatchEvent(event, this, player);
+		
+		return true;
+	}
+	
+	@Override
+	public boolean leave(Player player)
+	{
+		if (isDestroyed) return false;
+		if (members.remove(player) == false) return false;
+		dispatchLeaveEvent(player);
+		return true;
+	}
+	
+	private void dispatchLeaveEvent(Player player)
+	{
 		ChatChannelPlayerLeaveEvent event = new ChatChannelPlayerLeaveEvent(this, player);
 		eventManager.dispatchEvent(event, this, player);
 	}
