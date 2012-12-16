@@ -23,7 +23,7 @@ import net.gtaun.wl.chat.ChatChannel;
  */
 public abstract class ChatChannelEvent extends Event
 {
-	private final ChatChannel channel;
+	protected final ChatChannel channel;
 	
 	
 	protected ChatChannelEvent(ChatChannel channel)

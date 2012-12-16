@@ -22,17 +22,15 @@ import net.gtaun.wl.chat.ChatChannel;
  * 
  * @author MK124
  */
-public class ChatChannelPlayerChatEvent extends ChatChannelEvent implements Interruptable
+public class ChatChannelPlayerChatEvent extends ChatChannelPlayerEvent implements Interruptable
 {
-	private final Player player;
 	private String text;
 	private boolean isCanceled;
 	
 	
 	public ChatChannelPlayerChatEvent(ChatChannel channel, Player player, String text)
 	{
-		super(channel);
-		this.player = player;
+		super(channel, player);
 		this.text = text;
 	}
 	
@@ -51,11 +49,6 @@ public class ChatChannelPlayerChatEvent extends ChatChannelEvent implements Inte
 	public boolean isCanceled()
 	{
 		return isCanceled;
-	}
-	
-	public Player getPlayer()
-	{
-		return player;
 	}
 	
 	public String getText()

@@ -17,10 +17,15 @@ import java.util.LinkedList;
 import java.util.List;
 
 import net.gtaun.shoebill.data.Color;
+import net.gtaun.shoebill.event.PlayerEventHandler;
+import net.gtaun.shoebill.event.player.PlayerDisconnectEvent;
 import net.gtaun.shoebill.object.Player;
 import net.gtaun.util.event.EventManager;
 import net.gtaun.util.event.ManagedEventManager;
+import net.gtaun.util.event.EventManager.HandlerPriority;
 import net.gtaun.wl.chat.ChatChannel;
+import net.gtaun.wl.chat.event.ChatChannelPlayerLeaveEvent;
+import net.gtaun.wl.chat.event.ChatChannelPlayerJoinEvent;
 import net.gtaun.wl.chat.event.ChatChannelMessageEvent;
 import net.gtaun.wl.chat.event.ChatChannelPlayerChatEvent;
 
@@ -46,11 +51,15 @@ public class ChatChannelImpl implements ChatChannel
 		this.name = name;
 		eventManager = new ManagedEventManager(rootEventManager);
 		members = new LinkedList<>();
+		
+		eventManager.registerHandler(PlayerDisconnectEvent.class, playerEventHandler, HandlerPriority.BOTTOM);
 	}
 	
 	@Override
 	public void destroy()
 	{
+		eventManager.cancelAll();
+		members.clear();
 		isDestroyed = true;
 	}
 	
@@ -94,7 +103,11 @@ public class ChatChannelImpl implements ChatChannel
 	public void join(Player player)
 	{
 		if (isDestroyed) return;
+		
 		members.add(player);
+		
+		ChatChannelPlayerJoinEvent event = new ChatChannelPlayerJoinEvent(this, player);
+		eventManager.dispatchEvent(event, this, player);
 	}
 	
 	@Override
@@ -102,6 +115,9 @@ public class ChatChannelImpl implements ChatChannel
 	{
 		if (isDestroyed) return;
 		members.remove(player);
+		
+		ChatChannelPlayerLeaveEvent event = new ChatChannelPlayerLeaveEvent(this, player);
+		eventManager.dispatchEvent(event, this, player);
 	}
 	
 	private String formatChannelMessage(String format)
@@ -152,4 +168,12 @@ public class ChatChannelImpl implements ChatChannel
 			member.sendMessage(Color.WHITE, message);
 		}
 	}
+	
+	private PlayerEventHandler playerEventHandler = new PlayerEventHandler()
+	{
+		public void onPlayerDisconnect(PlayerDisconnectEvent event)
+		{
+			
+		}
+	};
 }
