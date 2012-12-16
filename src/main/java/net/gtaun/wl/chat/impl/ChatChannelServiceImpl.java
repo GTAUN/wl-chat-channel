@@ -121,6 +121,12 @@ public class ChatChannelServiceImpl implements ChatChannelService
 		channels.remove(channel.getName());
 		channel.destroy();
 	}
+
+	@Override
+	public ChatChannel getDefaultChannel()
+	{
+		return defaultChannel;
+	}
 	
 	@Override
 	public void setDefaultChannel(ChatChannel channel)

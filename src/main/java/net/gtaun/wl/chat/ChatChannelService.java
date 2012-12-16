@@ -32,6 +32,7 @@ public interface ChatChannelService extends Service
 	Collection<ChatChannel> getChannels();
 	void destroyChannel(ChatChannel channel);
 	
+	ChatChannel getDefaultChannel();
 	void setDefaultChannel(ChatChannel channel);
 	
 	void setCommandEnabled(boolean enable);
