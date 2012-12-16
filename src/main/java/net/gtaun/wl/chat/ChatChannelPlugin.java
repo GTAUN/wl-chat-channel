@@ -42,7 +42,7 @@ public class ChatChannelPlugin extends WlPlugin
 	protected void onEnable() throws Throwable
 	{
 		EventManager eventManager = getEventManager();
-		chatChannelService = new ChatChannelServiceImpl(eventManager);
+		chatChannelService = new ChatChannelServiceImpl(getShoebill(), eventManager);
 		registerService(ChatChannelService.class, chatChannelService);
 		
 		if (chatChannelService.getDefaultChannel() == null)

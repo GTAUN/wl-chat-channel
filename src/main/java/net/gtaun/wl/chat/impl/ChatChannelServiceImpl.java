@@ -21,6 +21,7 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
 
+import net.gtaun.shoebill.Shoebill;
 import net.gtaun.shoebill.event.PlayerEventHandler;
 import net.gtaun.shoebill.event.player.PlayerCommandEvent;
 import net.gtaun.shoebill.event.player.PlayerConnectEvent;
@@ -43,6 +44,8 @@ import net.gtaun.wl.chat.event.ChatChannelEventHandler;
  */
 public class ChatChannelServiceImpl implements ChatChannelService
 {
+	private final Shoebill shoebill;
+	
 	private final ManagedEventManager eventManager;
 	private final Map<String, ChatChannel> channels;
 	private final Map<Player, ChatChannelPlayer> players;
@@ -52,8 +55,10 @@ public class ChatChannelServiceImpl implements ChatChannelService
 	private String commandOperation = "/c";
 	
 	
-	public ChatChannelServiceImpl(EventManager rootEventManager)
+	public ChatChannelServiceImpl(Shoebill shoebill, EventManager rootEventManager)
 	{
+		this.shoebill = shoebill;
+		
 		eventManager = new ManagedEventManager(rootEventManager);
 		channels = new HashMap<>();
 		players = new HashMap<>();
@@ -63,6 +68,8 @@ public class ChatChannelServiceImpl implements ChatChannelService
 	
 	private void initialize()
 	{
+		for (Player player : shoebill.getSampObjectStore().getPlayers()) createChatChannelPlayer(player);
+		
 		eventManager.registerHandler(PlayerConnectEvent.class, playerEventHandler, HandlerPriority.MONITOR);
 		eventManager.registerHandler(PlayerDisconnectEvent.class, playerEventHandler, HandlerPriority.BOTTOM);
 		eventManager.registerHandler(PlayerCommandEvent.class, playerEventHandler, HandlerPriority.NORMAL);
@@ -146,15 +153,20 @@ public class ChatChannelServiceImpl implements ChatChannelService
 		return false;
 	}
 	
+	private void createChatChannelPlayer(Player player)
+	{
+		ChatChannelPlayer chatChannelPlayer = new ChatChannelPlayerImpl(player);
+		defaultChannel.join(player);
+		chatChannelPlayer.setCurrentChannel(defaultChannel);
+		players.put(player, chatChannelPlayer);
+	}
+	
 	private PlayerEventHandler playerEventHandler = new PlayerEventHandler()
 	{
 		public void onPlayerConnect(PlayerConnectEvent event)
 		{
 			Player player = event.getPlayer();
-			ChatChannelPlayer chatChannelPlayer = new ChatChannelPlayerImpl(player);
-			defaultChannel.join(player);
-			chatChannelPlayer.setCurrentChannel(defaultChannel);
-			players.put(player, chatChannelPlayer);
+			createChatChannelPlayer(player);
 		}
 		
 		public void onPlayerDisconnect(PlayerDisconnectEvent event)
