@@ -39,7 +39,8 @@ public interface ChatChannel extends Destroyable
 	
 	String getPlayerMessageFormat();
 	void setPlayerMessageFormat(String format);
-
+	
+	boolean isMember(Player player);
 	Collection<Player> getMembers();
 	
 	boolean join(Player player);

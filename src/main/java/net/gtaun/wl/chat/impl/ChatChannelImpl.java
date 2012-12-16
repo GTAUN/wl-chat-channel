@@ -116,6 +116,12 @@ public class ChatChannelImpl implements ChatChannel
 	}
 	
 	@Override
+	public boolean isMember(Player player)
+	{
+		return members.contains(player);
+	}
+	
+	@Override
 	public Collection<Player> getMembers()
 	{
 		return new AbstractCollection<Player>()
@@ -250,7 +256,9 @@ public class ChatChannelImpl implements ChatChannel
 	{
 		public void onPlayerDisconnect(PlayerDisconnectEvent event)
 		{
-			
+			Player player = event.getPlayer();
+			if (isMember(player)) return;
+			leave(player);
 		}
 	};
 }
