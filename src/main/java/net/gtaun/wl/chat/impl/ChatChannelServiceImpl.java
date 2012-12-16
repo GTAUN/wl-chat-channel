@@ -134,6 +134,18 @@ public class ChatChannelServiceImpl implements ChatChannelService
 	public void setDefaultChannel(ChatChannel channel)
 	{
 		this.defaultChannel = channel;
+		
+		if (defaultChannel != null)
+		{
+			for (ChatChannelPlayer channelPlayer : players.values())
+			{
+				if (channelPlayer.getCurrentChannel() == null)
+				{
+					defaultChannel.join(channelPlayer.getPlayer());
+					channelPlayer.setCurrentChannel(defaultChannel);
+				}
+			}
+		}
 	}
 	
 	@Override
@@ -156,8 +168,6 @@ public class ChatChannelServiceImpl implements ChatChannelService
 	private void createChatChannelPlayer(Player player)
 	{
 		ChatChannelPlayer chatChannelPlayer = new ChatChannelPlayerImpl(player);
-		defaultChannel.join(player);
-		chatChannelPlayer.setCurrentChannel(defaultChannel);
 		players.put(player, chatChannelPlayer);
 	}
 	
