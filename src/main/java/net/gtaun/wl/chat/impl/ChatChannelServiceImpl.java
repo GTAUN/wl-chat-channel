@@ -67,8 +67,6 @@ public class ChatChannelServiceImpl implements ChatChannelService
 		eventManager.registerHandler(PlayerDisconnectEvent.class, playerEventHandler, HandlerPriority.BOTTOM);
 		eventManager.registerHandler(PlayerCommandEvent.class, playerEventHandler, HandlerPriority.NORMAL);
 		eventManager.registerHandler(PlayerTextEvent.class, playerEventHandler, HandlerPriority.NORMAL);
-		
-		setDefaultChannel(createChannel("Global"));
 	}
 	
 	public void uninitialize()

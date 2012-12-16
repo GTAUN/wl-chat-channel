@@ -45,6 +45,15 @@ public class ChatChannelPlugin extends Plugin
 		chatChannelService = new ChatChannelServiceImpl(eventManager);
 		registerService(ChatChannelService.class, chatChannelService);
 		
+		if (chatChannelService.getDefaultChannel() == null)
+		{
+			ChatChannel defaultChannel = chatChannelService.createChannel("Default");
+			defaultChannel.setPrefixFormat("");
+			
+			chatChannelService.setDefaultChannel(defaultChannel);
+			LOGGER.info("No default channel, create a default channel.");
+		}
+		
 		LOGGER.info(getDescription().getName() + " " + getDescription().getVersion() + " Enabled.");
 	}
 	
