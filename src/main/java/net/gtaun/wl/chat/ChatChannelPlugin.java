@@ -13,9 +13,9 @@
 
 package net.gtaun.wl.chat;
 
+import net.gtaun.shoebill.common.ConfigurablePlugin;
 import net.gtaun.util.event.EventManager;
 import net.gtaun.wl.chat.impl.ChatChannelServiceImpl;
-import net.gtaun.wl.common.WlPlugin;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @author MK124
  */
-public class ChatChannelPlugin extends WlPlugin
+public class ChatChannelPlugin extends ConfigurablePlugin
 {
 	public static final Logger LOGGER = LoggerFactory.getLogger(ChatChannelPlugin.class);
 	
