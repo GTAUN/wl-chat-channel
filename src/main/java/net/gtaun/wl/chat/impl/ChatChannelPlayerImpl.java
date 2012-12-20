@@ -52,6 +52,12 @@ public class ChatChannelPlayerImpl implements ChatChannelPlayer
 	{
 		this.currentChannel = channel;
 	}
+	
+	@Override
+	public void chat(ChatChannel channel, String text)
+	{
+		currentChannel.chat(player, text);
+	}
 
 	@Override
 	public void chat(String text)
@@ -62,6 +68,6 @@ public class ChatChannelPlayerImpl implements ChatChannelPlayer
 			return;
 		}
 		
-		currentChannel.chat(player, text);
+		chat(currentChannel, text);
 	}
 }

@@ -26,6 +26,7 @@ public interface ChatChannelPlayer
 	
 	void setCurrentChannel(ChatChannel channel);
 	ChatChannel getCurrentChannel();
-	
+
+	void chat(ChatChannel channel, String text);
 	void chat(String text);
 }

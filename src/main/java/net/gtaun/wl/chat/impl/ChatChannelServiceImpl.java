@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.Queue;
 
 import net.gtaun.shoebill.Shoebill;
+import net.gtaun.shoebill.common.PlayerUtils;
+import net.gtaun.shoebill.data.Color;
 import net.gtaun.shoebill.event.PlayerEventHandler;
 import net.gtaun.shoebill.event.player.PlayerCommandEvent;
 import net.gtaun.shoebill.event.player.PlayerConnectEvent;
@@ -52,7 +54,7 @@ public class ChatChannelServiceImpl implements ChatChannelService
 	
 	private ChatChannel defaultChannel;
 	private boolean isCommandEnabled = true;
-	private String commandOperation = "/c";
+	private String commandOperation = "/ch";
 	
 	
 	public ChatChannelServiceImpl(Shoebill shoebill, EventManager rootEventManager)
@@ -107,6 +109,18 @@ public class ChatChannelServiceImpl implements ChatChannelService
 	}
 	
 	@Override
+	public void destroyChannel(ChatChannel channel)
+	{
+		channel.destroy();
+	}
+	
+	@Override
+	public boolean isChannelExists(String name)
+	{
+		return channels.containsKey(name);
+	}
+	
+	@Override
 	public ChatChannel getChannel(String name)
 	{
 		return channels.get(name);
@@ -116,12 +130,6 @@ public class ChatChannelServiceImpl implements ChatChannelService
 	public Collection<ChatChannel> getChannels()
 	{
 		return Collections.unmodifiableCollection(channels.values());
-	}
-	
-	@Override
-	public void destroyChannel(ChatChannel channel)
-	{
-		channel.destroy();
 	}
 	
 	@Override
@@ -162,12 +170,56 @@ public class ChatChannelServiceImpl implements ChatChannelService
 	
 	private boolean processPlayerCommand(Player player, String op, Queue<String> args)
 	{
+		if (op.equals("create"))
+		{
+			if (args.size() < 1)
+			{
+				player.sendMessage(Color.YELLOW, "Usage: /ch create [name]");
+				return true;
+			}
+			
+			String name = args.poll();
+			if (isChannelExists(name))
+			{
+				player.sendMessage(Color.YELLOW, "Channel already exists.");
+				return true;
+			}
+			
+			ChatChannel channel = createChannel(name);
+			channel.join(player);
+			
+			player.sendMessage(Color.WHITE, "Channel \"" + name + "\" has been successfully created.");
+			return true;
+		}
+		else if (op.equals("join"))
+		{
+			if (args.size() < 1)
+			{
+				player.sendMessage(Color.YELLOW, "Usage: /ch join [name]");
+				return true;
+			}
+			
+			String name = args.poll();
+			ChatChannel channel = getChannel(name);
+			if (channel == null)
+			{
+				player.sendMessage(Color.YELLOW, "The specified channel does not exist.");
+				return true;
+			}
+			
+			channel.join(player);
+			
+			player.sendMessage(Color.WHITE, "You have joined the \"" + name + "\" channel.");
+			return true;
+		}
+		
 		return false;
 	}
 	
 	private void createChatChannelPlayer(Player player)
 	{
 		ChatChannelPlayer chatChannelPlayer = new ChatChannelPlayerImpl(player);
+		chatChannelPlayer.setCurrentChannel(defaultChannel);
 		players.put(player, chatChannelPlayer);
 	}
 	
@@ -214,11 +266,61 @@ public class ChatChannelServiceImpl implements ChatChannelService
 		
 		public void onPlayerText(PlayerTextEvent event)
 		{
+			event.disallow();
+			
 			Player player = event.getPlayer();
 			String text = event.getText();
 			ChatChannelPlayer chatChannelPlayer = getPlayer(player);
+			
+			char op = text.charAt(0);
+			if (op == '@')
+			{
+				String[] splits = text.substring(1).split(" ", 2);
+				if (splits.length != 2)
+				{
+					player.sendMessage(Color.YELLOW, "Usage: @[id/name] [message]");
+					return;
+				}
+				
+				String name = splits[0], message = splits[1];
+				Player target;
+				
+				target = PlayerUtils.getPlayerByNameOrId(name);
+				if (target == null)
+				{
+					player.sendMessage(Color.YELLOW, "Did not find the specified player.");
+					return;
+				}
+				
+				target.sendChat(player, message);
+			}
+			else if (op == '#')
+			{
+				String[] splits = text.substring(1).split(" ", 2);
+				if (splits.length != 2)
+				{
+					player.sendMessage(Color.YELLOW, "Usage: #[channel] [message]");
+					return;
+				}
+				
+				String name = splits[0], message = splits[1];
+				ChatChannel channel = getChannel(name);
+				if (channel == null)
+				{
+					player.sendMessage(Color.YELLOW, "Did not find the specified channel.");
+					return;
+				}
+				
+				if (channel.isMember(player) == false)
+				{
+					player.sendMessage(Color.YELLOW, "You did not join this channel.");
+					return;
+				}
+				
+				chatChannelPlayer.chat(channel, message);
+			}
+			
 			chatChannelPlayer.chat(text);
-			event.disallow();
 		}
 	};
 	

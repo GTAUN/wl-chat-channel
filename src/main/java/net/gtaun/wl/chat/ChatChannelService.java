@@ -28,9 +28,11 @@ public interface ChatChannelService extends Service
 	ChatChannelPlayer getPlayer(Player player);
 	
 	ChatChannel createChannel(String name);
+	void destroyChannel(ChatChannel channel);
+	
+	boolean isChannelExists(String name);
 	ChatChannel getChannel(String name);
 	Collection<ChatChannel> getChannels();
-	void destroyChannel(ChatChannel channel);
 	
 	ChatChannel getDefaultChannel();
 	void setDefaultChannel(ChatChannel channel);
