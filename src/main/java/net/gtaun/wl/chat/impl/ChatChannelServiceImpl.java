@@ -292,7 +292,7 @@ public class ChatChannelServiceImpl implements ChatChannelService
 					return;
 				}
 				
-				target.sendChat(player, message);
+				player.sendChat(target, message);
 			}
 			else if (op == '#')
 			{
