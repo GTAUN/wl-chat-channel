@@ -19,6 +19,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
+import net.gtaun.shoebill.Shoebill;
 import net.gtaun.shoebill.data.Color;
 import net.gtaun.shoebill.event.PlayerEventHandler;
 import net.gtaun.shoebill.event.player.PlayerDisconnectEvent;
@@ -245,6 +246,7 @@ public class ChatChannelImpl implements ChatChannel
 		if (messageEvent.isCanceled()) return;
 		
 		message = messageEvent.getMessage();
+		Shoebill.Instance.get().getSampObjectStore().getServer().sendMessageToAll(Color.WHITE, message);
 		
 		for (Player member : members)
 		{
