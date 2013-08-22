@@ -37,6 +37,17 @@ public interface ChatChannelService extends Service
 	ChatChannel getDefaultChannel();
 	void setDefaultChannel(ChatChannel channel);
 	
+	/**
+	 * 是否开启频道系统的命令。
+	 * 
+	 * @param enable 是否开启
+	 */
 	void setCommandEnabled(boolean enable);
+	
+	/**
+	 * 设置频道系列命令的命令头。
+	 * 
+	 * @param op 命令头，默认为 'ch'
+	 */
 	void setCommandOperation(String op);
 }

@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.Queue;
 
 import net.gtaun.shoebill.Shoebill;
-import net.gtaun.shoebill.common.PlayerUtils;
+import net.gtaun.shoebill.common.player.PlayerUtils;
 import net.gtaun.shoebill.data.Color;
 import net.gtaun.shoebill.event.PlayerEventHandler;
 import net.gtaun.shoebill.event.player.PlayerCommandEvent;
