@@ -26,34 +26,27 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
 
-import net.gtaun.shoebill.Shoebill;
-import net.gtaun.shoebill.common.player.PlayerUtils;
+import net.gtaun.shoebill.common.AbstractShoebillContext;
 import net.gtaun.shoebill.data.Color;
-import net.gtaun.shoebill.event.PlayerEventHandler;
 import net.gtaun.shoebill.event.player.PlayerCommandEvent;
 import net.gtaun.shoebill.event.player.PlayerConnectEvent;
 import net.gtaun.shoebill.event.player.PlayerDisconnectEvent;
 import net.gtaun.shoebill.event.player.PlayerTextEvent;
 import net.gtaun.shoebill.object.Player;
+import net.gtaun.util.event.Attentions;
 import net.gtaun.util.event.EventManager;
-import net.gtaun.util.event.EventManager.HandlerPriority;
-import net.gtaun.util.event.ManagedEventManager;
+import net.gtaun.util.event.HandlerPriority;
 import net.gtaun.wl.chat.ChatChannel;
 import net.gtaun.wl.chat.ChatChannelPlayer;
 import net.gtaun.wl.chat.ChatChannelService;
 import net.gtaun.wl.chat.event.ChatChannelDestroyEvent;
-import net.gtaun.wl.chat.event.ChatChannelEventHandler;
 
 /**
- * 新未来世界聊天频道服务实现类。
  * 
  * @author MK124
  */
-public class ChatChannelServiceImpl implements ChatChannelService
+public class ChatChannelServiceImpl extends AbstractShoebillContext implements ChatChannelService
 {
-	private final Shoebill shoebill;
-	
-	private final ManagedEventManager eventManager;
 	private final Map<String, ChatChannel> channels;
 	private final Map<Player, ChatChannelPlayer> players;
 	
@@ -62,33 +55,129 @@ public class ChatChannelServiceImpl implements ChatChannelService
 	private String commandOperation = "/ch";
 	
 	
-	public ChatChannelServiceImpl(Shoebill shoebill, EventManager rootEventManager)
+	public ChatChannelServiceImpl(EventManager rootEventManager)
 	{
-		this.shoebill = shoebill;
+		super(rootEventManager);
 		
-		eventManager = new ManagedEventManager(rootEventManager);
 		channels = new HashMap<>();
 		players = new HashMap<>();
 		
-		initialize();
+		init();
 	}
 	
-	private void initialize()
+	@Override
+	protected void onInit()
 	{
-		for (Player player : shoebill.getSampObjectStore().getPlayers()) createChatChannelPlayer(player);
+		for (Player player : Player.get()) createChatChannelPlayer(player);
 		
-		eventManager.registerHandler(PlayerConnectEvent.class, playerEventHandler, HandlerPriority.MONITOR);
-		eventManager.registerHandler(PlayerDisconnectEvent.class, playerEventHandler, HandlerPriority.BOTTOM);
-		eventManager.registerHandler(PlayerCommandEvent.class, playerEventHandler, HandlerPriority.NORMAL);
-		eventManager.registerHandler(PlayerTextEvent.class, playerEventHandler, HandlerPriority.NORMAL);
+		eventManagerNode.registerHandler(PlayerConnectEvent.class, HandlerPriority.MONITOR, (e) ->
+		{
+			Player player = e.getPlayer();
+			createChatChannelPlayer(player);
+		});
 		
-		eventManager.registerHandler(ChatChannelDestroyEvent.class, this, channelEventHandler, HandlerPriority.BOTTOM);
+		eventManagerNode.registerHandler(PlayerDisconnectEvent.class, HandlerPriority.BOTTOM, (e) ->
+		{
+			Player player = e.getPlayer();
+			players.remove(player);
+		});
+		
+		eventManagerNode.registerHandler(PlayerCommandEvent.class, (e) ->
+		{
+			if (isCommandEnabled == false) return;
+			
+			Player player = e.getPlayer();
+			
+			String command = e.getCommand();
+			String[] splits = command.split(" ", 2);
+			
+			String operation = splits[0].toLowerCase();
+			Queue<String> args = new LinkedList<>();
+			
+			if (splits.length > 1)
+			{
+				String[] argsArray = splits[1].split(" ");
+				args.addAll(Arrays.asList(argsArray));
+			}
+			
+			if (operation.equals(commandOperation))
+			{
+				String op = args.poll();
+				boolean ret = processPlayerCommand(player, op, args);
+				if (ret) e.setProcessed();
+				return;
+			}
+		});
+		
+		eventManagerNode.registerHandler(PlayerTextEvent.class, (e) ->
+		{
+			e.disallow();
+			
+			Player player = e.getPlayer();
+			String text = e.getText();
+			ChatChannelPlayer chatChannelPlayer = getPlayer(player);
+			
+			char op = text.charAt(0);
+			if (op == '@')
+			{
+				String[] splits = text.substring(1).split(" ", 2);
+				if (splits.length != 2)
+				{
+					player.sendMessage(Color.YELLOW, "Usage: @[id/name] [message]");
+					return;
+				}
+				
+				String name = splits[0], message = splits[1];
+				Player target;
+				
+				target = Player.getByNameOrId(name);
+				if (target == null)
+				{
+					player.sendMessage(Color.YELLOW, "Did not find the specified player.");
+					return;
+				}
+				
+				player.sendChat(target, message);
+			}
+			else if (op == '#')
+			{
+				String[] splits = text.substring(1).split(" ", 2);
+				if (splits.length != 2)
+				{
+					player.sendMessage(Color.YELLOW, "Usage: #[channel] [message]");
+					return;
+				}
+				
+				String name = splits[0], message = splits[1];
+				ChatChannel channel = getChannel(name);
+				if (channel == null)
+				{
+					player.sendMessage(Color.YELLOW, "Did not find the specified channel.");
+					return;
+				}
+				
+				if (channel.isMember(player) == false)
+				{
+					player.sendMessage(Color.YELLOW, "You did not join this channel.");
+					return;
+				}
+				
+				chatChannelPlayer.chat(channel, message);
+			}
+			
+			chatChannelPlayer.chat(text);
+		});
+		
+		eventManagerNode.registerHandler(ChatChannelDestroyEvent.class, HandlerPriority.BOTTOM, Attentions.create().object(this), (e) ->
+		{
+			ChatChannel channel = e.getChannel();
+			channels.remove(channel.getName());
+		});
 	}
 	
-	public void uninitialize()
+	@Override
+	protected void onDestroy()
 	{
-		eventManager.cancelAll();
-		
 		for (ChatChannel channel : channels.values()) channel.destroy();
 		channels.clear();
 		
@@ -107,7 +196,7 @@ public class ChatChannelServiceImpl implements ChatChannelService
 		ChatChannel channel = getChannel(name);
 		if (channel != null) return channel;
 		
-		channel = new ChatChannelImpl(name, this, eventManager);
+		channel = new ChatChannelImpl(name, this, eventManagerNode);
 		channels.put(channel.getName(), channel);
 		
 		return channel;
@@ -227,114 +316,4 @@ public class ChatChannelServiceImpl implements ChatChannelService
 		chatChannelPlayer.setCurrentChannel(defaultChannel);
 		players.put(player, chatChannelPlayer);
 	}
-	
-	private PlayerEventHandler playerEventHandler = new PlayerEventHandler()
-	{
-		public void onPlayerConnect(PlayerConnectEvent event)
-		{
-			Player player = event.getPlayer();
-			createChatChannelPlayer(player);
-		}
-		
-		public void onPlayerDisconnect(PlayerDisconnectEvent event)
-		{
-			Player player = event.getPlayer();
-			players.remove(player);
-		}
-		
-		public void onPlayerCommand(PlayerCommandEvent event)
-		{
-			if (isCommandEnabled == false) return;
-			
-			Player player = event.getPlayer();
-			
-			String command = event.getCommand();
-			String[] splits = command.split(" ", 2);
-			
-			String operation = splits[0].toLowerCase();
-			Queue<String> args = new LinkedList<>();
-			
-			if (splits.length > 1)
-			{
-				String[] argsArray = splits[1].split(" ");
-				args.addAll(Arrays.asList(argsArray));
-			}
-			
-			if (operation.equals(commandOperation))
-			{
-				String op = args.poll();
-				boolean ret = processPlayerCommand(player, op, args);
-				if (ret) event.setProcessed();
-				return;
-			}
-		}
-		
-		public void onPlayerText(PlayerTextEvent event)
-		{
-			event.disallow();
-			
-			Player player = event.getPlayer();
-			String text = event.getText();
-			ChatChannelPlayer chatChannelPlayer = getPlayer(player);
-			
-			char op = text.charAt(0);
-			if (op == '@')
-			{
-				String[] splits = text.substring(1).split(" ", 2);
-				if (splits.length != 2)
-				{
-					player.sendMessage(Color.YELLOW, "Usage: @[id/name] [message]");
-					return;
-				}
-				
-				String name = splits[0], message = splits[1];
-				Player target;
-				
-				target = PlayerUtils.getPlayerByNameOrId(name);
-				if (target == null)
-				{
-					player.sendMessage(Color.YELLOW, "Did not find the specified player.");
-					return;
-				}
-				
-				player.sendChat(target, message);
-			}
-			else if (op == '#')
-			{
-				String[] splits = text.substring(1).split(" ", 2);
-				if (splits.length != 2)
-				{
-					player.sendMessage(Color.YELLOW, "Usage: #[channel] [message]");
-					return;
-				}
-				
-				String name = splits[0], message = splits[1];
-				ChatChannel channel = getChannel(name);
-				if (channel == null)
-				{
-					player.sendMessage(Color.YELLOW, "Did not find the specified channel.");
-					return;
-				}
-				
-				if (channel.isMember(player) == false)
-				{
-					player.sendMessage(Color.YELLOW, "You did not join this channel.");
-					return;
-				}
-				
-				chatChannelPlayer.chat(channel, message);
-			}
-			
-			chatChannelPlayer.chat(text);
-		}
-	};
-	
-	private ChatChannelEventHandler channelEventHandler = new ChatChannelEventHandler()
-	{
-		protected void onChannelDestroy(ChatChannelDestroyEvent event)
-		{
-			ChatChannel channel = event.getChannel();
-			channels.remove(channel.getName());
-		}
-	};
 }

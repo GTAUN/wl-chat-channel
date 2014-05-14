@@ -18,41 +18,35 @@
 
 package net.gtaun.wl.chat.impl;
 
-import java.util.AbstractCollection;
-import java.util.Collection;
-import java.util.Iterator;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
-import net.gtaun.shoebill.Shoebill;
+import net.gtaun.shoebill.common.AbstractShoebillContext;
 import net.gtaun.shoebill.data.Color;
-import net.gtaun.shoebill.event.PlayerEventHandler;
 import net.gtaun.shoebill.event.player.PlayerDisconnectEvent;
 import net.gtaun.shoebill.object.Player;
+import net.gtaun.shoebill.object.Server;
 import net.gtaun.util.event.EventManager;
-import net.gtaun.util.event.ManagedEventManager;
-import net.gtaun.util.event.EventManager.HandlerPriority;
+import net.gtaun.util.event.HandlerPriority;
 import net.gtaun.wl.chat.ChatChannel;
 import net.gtaun.wl.chat.ChatChannelService;
 import net.gtaun.wl.chat.event.ChatChannelCreateEvent;
 import net.gtaun.wl.chat.event.ChatChannelDestroyEvent;
-import net.gtaun.wl.chat.event.ChatChannelPlayerLeaveEvent;
-import net.gtaun.wl.chat.event.ChatChannelPlayerJoinEvent;
 import net.gtaun.wl.chat.event.ChatChannelMessageEvent;
 import net.gtaun.wl.chat.event.ChatChannelPlayerChatEvent;
+import net.gtaun.wl.chat.event.ChatChannelPlayerJoinEvent;
+import net.gtaun.wl.chat.event.ChatChannelPlayerLeaveEvent;
 
 /**
- * 聊天频道实现类。
  * 
  * @author MK124
  */
-public class ChatChannelImpl implements ChatChannel
+public class ChatChannelImpl extends AbstractShoebillContext implements ChatChannel
 {
 	private final ChatChannelService service;
-	private final ManagedEventManager eventManager;
 	private final List<Player> members;
 	
-	private boolean isDestroyed;
 	private String name;
 	private String prefixFormat = "[" + FORMAT_CHANNEL_NAME + "] ";
 	private String playerMessageFormat = FORMAT_PLAYER_COLOR + FORMAT_PLAYER_NAME+ ": " + FORMAT_CHANNEL_COLOR + FORMAT_PLAYER_TEXT;
@@ -61,34 +55,35 @@ public class ChatChannelImpl implements ChatChannel
 	
 	public ChatChannelImpl(String name, ChatChannelService service, EventManager rootEventManager)
 	{
+		super(rootEventManager);
 		this.name = name;
 		this.service = service;
-		
-		eventManager = new ManagedEventManager(rootEventManager);
+
 		members = new LinkedList<>();
-		
-		eventManager.registerHandler(PlayerDisconnectEvent.class, playerEventHandler, HandlerPriority.BOTTOM);
+		init();
+	}
+	
+	@Override
+	protected void onInit()
+	{
+		eventManagerNode.registerHandler(PlayerDisconnectEvent.class, HandlerPriority.BOTTOM, (e) ->
+		{
+			Player player = e.getPlayer();
+			if (!isMember(player)) return;
+			leave(player);
+		});
 		
 		ChatChannelCreateEvent event = new ChatChannelCreateEvent(this);
-		eventManager.dispatchEvent(event, service);
+		eventManagerNode.dispatchEvent(event, service);
 	}
 	
 	@Override
-	public void destroy()
+	public void onDestroy()
 	{
 		ChatChannelDestroyEvent event = new ChatChannelDestroyEvent(this);
-		eventManager.dispatchEvent(event, service, this);
+		eventManagerNode.dispatchEvent(event, service, this);
 		
-		eventManager.cancelAll();
 		members.clear();
-		
-		isDestroyed = true;
-	}
-	
-	@Override
-	public boolean isDestroyed()
-	{
-		return isDestroyed;
 	}
 	
 	@Override
@@ -128,68 +123,20 @@ public class ChatChannelImpl implements ChatChannel
 	}
 	
 	@Override
-	public Collection<Player> getMembers()
+	public List<Player> getMembers()
 	{
-		return new AbstractCollection<Player>()
-		{
-			@Override
-			public boolean add(Player e)
-			{
-				return join(e);
-			}
-			
-			@Override
-			public Iterator<Player> iterator()
-			{
-				return new Iterator<Player>()
-				{
-					private Iterator<Player> iterator = members.iterator();
-					private Player current;
-					
-					@Override
-					public boolean hasNext()
-					{
-						return iterator.hasNext();
-					}
-
-					@Override
-					public Player next()
-					{
-						current = iterator.next();
-						return current;
-					}
-
-					@Override
-					public void remove()
-					{
-						iterator.remove();
-						
-						if (current != null)
-						{
-							dispatchLeaveEvent(current);
-							current = null;
-						}
-					}
-				};
-			}
-
-			@Override
-			public int size()
-			{
-				return members.size();
-			}
-		};
+		return Collections.unmodifiableList(members);
 	}
 	
 	@Override
 	public boolean join(Player player)
 	{
-		if (isDestroyed) return false;
+		if (isDestroyed()) return false;
 		if (members.contains(player)) return false;
 		
 		members.add(player);
 		ChatChannelPlayerJoinEvent event = new ChatChannelPlayerJoinEvent(this, player);
-		eventManager.dispatchEvent(event, this, player);
+		eventManagerNode.dispatchEvent(event, this, player);
 		
 		return true;
 	}
@@ -197,8 +144,8 @@ public class ChatChannelImpl implements ChatChannel
 	@Override
 	public boolean leave(Player player)
 	{
-		if (isDestroyed) return false;
-		if (members.remove(player) == false) return false;
+		if (isDestroyed()) return false;
+		if (!members.remove(player)) return false;
 		dispatchLeaveEvent(player);
 		return true;
 	}
@@ -206,7 +153,7 @@ public class ChatChannelImpl implements ChatChannel
 	private void dispatchLeaveEvent(Player player)
 	{
 		ChatChannelPlayerLeaveEvent event = new ChatChannelPlayerLeaveEvent(this, player);
-		eventManager.dispatchEvent(event, this, player);
+		eventManagerNode.dispatchEvent(event, this, player);
 	}
 	
 	private String formatChannelMessage(String format)
@@ -229,10 +176,10 @@ public class ChatChannelImpl implements ChatChannel
 	@Override
 	public void chat(Player player, String text)
 	{
-		if (isDestroyed) return;
+		if (isDestroyed()) return;
 		
 		ChatChannelPlayerChatEvent chatEvent = new ChatChannelPlayerChatEvent(this, player, text);
-		eventManager.dispatchEvent(chatEvent, player, this);
+		eventManagerNode.dispatchEvent(chatEvent, player, this);
 		if (chatEvent.isCanceled()) return;
 		
 		text = chatEvent.getText();
@@ -247,25 +194,15 @@ public class ChatChannelImpl implements ChatChannel
 		String message = formatChannelMessage(prefixFormat + text);
 		
 		ChatChannelMessageEvent messageEvent = new ChatChannelMessageEvent(this, message);
-		eventManager.dispatchEvent(messageEvent, this);
+		eventManagerNode.dispatchEvent(messageEvent, this);
 		if (messageEvent.isCanceled()) return;
 		
 		message = messageEvent.getMessage();
-		Shoebill.Instance.get().getSampObjectStore().getServer().sendMessageToAll(Color.WHITE, message);
+		Server.get().sendMessageToAll(Color.WHITE, message);
 		
 		for (Player member : members)
 		{
 			member.sendMessage(Color.WHITE, message);
 		}
 	}
-	
-	private PlayerEventHandler playerEventHandler = new PlayerEventHandler()
-	{
-		public void onPlayerDisconnect(PlayerDisconnectEvent event)
-		{
-			Player player = event.getPlayer();
-			if (isMember(player)) return;
-			leave(player);
-		}
-	};
 }

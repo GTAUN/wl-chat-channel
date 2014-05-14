@@ -47,7 +47,7 @@ public class ChatChannelPlugin extends ConfigurablePlugin
 	protected void onEnable() throws Throwable
 	{
 		EventManager eventManager = getEventManager();
-		chatChannelService = new ChatChannelServiceImpl(getShoebill(), eventManager);
+		chatChannelService = new ChatChannelServiceImpl(eventManager);
 		registerService(ChatChannelService.class, chatChannelService);
 		
 		if (chatChannelService.getDefaultChannel() == null)
@@ -66,7 +66,7 @@ public class ChatChannelPlugin extends ConfigurablePlugin
 	protected void onDisable() throws Throwable
 	{
 		unregisterService(ChatChannelService.class);
-		chatChannelService.uninitialize();
+		chatChannelService.destroy();
 		chatChannelService = null;
 		
 		LOGGER.info(getDescription().getName() + " " + getDescription().getVersion() + " Disabled.");
